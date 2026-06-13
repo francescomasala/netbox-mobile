@@ -8,6 +8,9 @@ final class PrefixListViewModel {
     var isLoading = false
     var error: APIError?
     var selectedFamily: Int?
+    var totalCount: Int = 0
+
+    var isTruncated: Bool { totalCount > prefixes.count }
 
     @ObservationIgnored let repository: any IPAMRepositoryProtocol
 
@@ -20,7 +23,9 @@ final class PrefixListViewModel {
         error = nil
 
         do {
-            prefixes = try await repository.fetchPrefixes(vrfId: nil, family: selectedFamily)
+            let result = try await repository.fetchPrefixes(vrfId: nil, family: selectedFamily, query: nil)
+            prefixes = result.items
+            totalCount = result.totalCount
         } catch is CancellationError {
         } catch let apiError as APIError {
             error = apiError

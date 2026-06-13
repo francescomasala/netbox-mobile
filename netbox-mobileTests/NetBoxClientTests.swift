@@ -155,9 +155,9 @@ struct NetBoxClientTests {
         let client = try await Self.makeClient()
         let repository = IPAMRepository(client: client)
 
-        let prefixes = try await repository.fetchPrefixes(vrfId: nil, family: 4)
+        let result = try await repository.fetchPrefixes(vrfId: nil, family: 4, query: nil)
 
-        #expect(prefixes.map(\.prefix) == ["10.0.0.0/24", "10.0.1.0/24"])
+        #expect(result.items.map(\.prefix) == ["10.0.0.0/24", "10.0.1.0/24"])
         #expect(MockURLProtocol.recordedRequests().count == 2)
     }
 

@@ -23,6 +23,11 @@ struct PrefixListView: View {
                     .frame(maxWidth: 240)
                 }
             }
+            .safeAreaInset(edge: .top) {
+                if viewModel.isTruncated {
+                    TruncationBanner(totalCount: viewModel.totalCount)
+                }
+            }
             .task {
                 if viewModel.prefixes.isEmpty {
                     await viewModel.load()
@@ -88,16 +93,29 @@ struct PrefixListView: View {
         }
         .map { (name: $0.key, prefixes: $0.value.sorted { $0.prefix < $1.prefix }) }
         .sorted { lhs, rhs in
-            if lhs.name == "Global" {
-                return true
-            }
-
-            if rhs.name == "Global" {
-                return false
-            }
-
+            if lhs.name == "Global" { return true }
+            if rhs.name == "Global" { return false }
             return lhs.name < rhs.name
         }
+    }
+}
+
+// MARK: - Shared truncation banner
+
+struct TruncationBanner: View {
+    let totalCount: Int
+
+    var body: some View {
+        Label(
+            "Showing first 500 of \(totalCount) results. Refine your search to see more.",
+            systemImage: "exclamationmark.triangle.fill"
+        )
+        .font(.caption.weight(.medium))
+        .foregroundStyle(.yellow)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.yellow.opacity(0.12))
     }
 }
 

@@ -1,11 +1,12 @@
 import Foundation
 
-protocol IPAMRepositoryProtocol: Sendable {
-    func fetchPrefixes(vrfId: Int?, family: Int?, query: String?) async throws -> PagedResult<Prefix>
-    func fetchIPAddresses(prefixId: Int?, query: String?) async throws -> [IPAddress]
+protocol DCIMRepositoryProtocol: Sendable {
+    func fetchDevices(siteId: Int?, status: String?, query: String?, assetTag: String?) async throws -> PagedResult<Device>
+    func fetchDevice(id: Int) async throws -> Device
+    func fetchInterfaces(deviceId: Int) async throws -> [Interface]
 }
 
-actor IPAMRepository: IPAMRepositoryProtocol {
+actor DCIMRepository: DCIMRepositoryProtocol {
     private let client: NetBoxClient
     private let pageLimit = 100
     private let resultCap = 500
@@ -14,31 +15,23 @@ actor IPAMRepository: IPAMRepositoryProtocol {
         self.client = client
     }
 
-    func fetchPrefixes(vrfId: Int?, family: Int?, query: String?) async throws -> PagedResult<Prefix> {
+    func fetchDevices(siteId: Int?, status: String?, query: String?, assetTag: String?) async throws -> PagedResult<Device> {
         var queryItems: [URLQueryItem] = []
-        if let vrfId { queryItems.append(URLQueryItem(name: "vrf_id", value: String(vrfId))) }
-        if let family { queryItems.append(URLQueryItem(name: "family", value: String(family))) }
+        if let siteId { queryItems.append(URLQueryItem(name: "site_id", value: String(siteId))) }
+        if let status { queryItems.append(URLQueryItem(name: "status", value: status)) }
         if let query, !query.isEmpty { queryItems.append(URLQueryItem(name: "q", value: query)) }
-        return try await fetchAll(endpoint: "ipam/prefixes", baseQueryItems: queryItems)
+        if let assetTag, !assetTag.isEmpty { queryItems.append(URLQueryItem(name: "asset_tag", value: assetTag)) }
+        return try await fetchAll(endpoint: "dcim/devices", baseQueryItems: queryItems)
     }
 
-    func fetchIPAddresses(prefixId: Int?, query: String?) async throws -> [IPAddress] {
-        // Guard against fetching all IPs with no filter
-        guard prefixId != nil || (query != nil && !query!.isEmpty) else {
-            return []
-        }
+    func fetchDevice(id: Int) async throws -> Device {
+        try await client.get("dcim/devices/\(id)")
+    }
 
-        var queryItems: [URLQueryItem] = []
-        if let prefixId {
-            let prefix: Prefix = try await client.get("ipam/prefixes/\(prefixId)")
-            queryItems.append(URLQueryItem(name: "parent", value: prefix.prefix))
-        }
-        if let query, !query.isEmpty {
-            queryItems.append(URLQueryItem(name: "q", value: query))
-        }
-
-        let result: PagedResult<IPAddress> = try await fetchAll(
-            endpoint: "ipam/ip-addresses",
+    func fetchInterfaces(deviceId: Int) async throws -> [Interface] {
+        let queryItems = [URLQueryItem(name: "device_id", value: String(deviceId))]
+        let result: PagedResult<Interface> = try await fetchAll(
+            endpoint: "dcim/interfaces",
             baseQueryItems: queryItems
         )
         return result.items

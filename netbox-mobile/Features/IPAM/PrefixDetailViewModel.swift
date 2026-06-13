@@ -21,7 +21,7 @@ final class PrefixDetailViewModel {
         error = nil
 
         do {
-            ipAddresses = try await repository.fetchIPAddresses(prefixId: prefix.id)
+            ipAddresses = try await repository.fetchIPAddresses(prefixId: prefix.id, query: nil)
         } catch is CancellationError {
         } catch let apiError as APIError {
             error = apiError

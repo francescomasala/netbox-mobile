@@ -148,6 +148,10 @@ final class ConnectionsViewModel {
         IPAMRepository(client: NetBoxClient(connection: connection, keychain: keychain))
     }
 
+    func appDependencies(for connection: Connection) -> AppDependencies {
+        AppDependencies(connection: connection, keychain: keychain)
+    }
+
     func testConnection(url: URL, token: String) async throws {
         try await testConnection(
             url: url,
