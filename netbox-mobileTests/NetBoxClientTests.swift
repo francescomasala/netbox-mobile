@@ -161,6 +161,39 @@ struct NetBoxClientTests {
         #expect(MockURLProtocol.recordedRequests().count == 2)
     }
 
+    @Test func getUsesBearerAuthorizationHeaderForV2Token() async throws {
+        MockURLProtocol.reset()
+        MockURLProtocol.setHandler { request in
+            let response = try makeHTTPResponse(for: request, statusCode: 200)
+            return (response, Data("{}".utf8))
+        }
+
+        let connectionID = UUID()
+        let keychain = KeychainWrapper(service: "it.hyperbit.netboxmobile.tests.\(UUID().uuidString)")
+        let v2Token = "nbt_abc123.secretplaintext"
+        try await keychain.save(token: v2Token, for: connectionID)
+
+        let connection = Connection(
+            id: connectionID,
+            name: "Test",
+            baseURL: URL(string: "https://netbox.example")!,
+            tokenVersion: .v2
+        )
+
+        let client = NetBoxClient(
+            connection: connection,
+            keychain: keychain,
+            session: Self.mockSession()
+        )
+
+        let _: EmptyPayload = try await client.get("api/status")
+
+        let request = try #require(MockURLProtocol.recordedRequests().first)
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer \(v2Token)")
+
+        try await keychain.delete(for: connectionID)
+    }
+
     private static func makeClient() async throws -> NetBoxClient {
         let connectionID = UUID()
         let keychain = KeychainWrapper(service: "it.hyperbit.netboxmobile.tests.\(UUID().uuidString)")

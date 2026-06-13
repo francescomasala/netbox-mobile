@@ -38,7 +38,7 @@ actor NetBoxClient {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("Token \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(connection.tokenVersion.authorizationHeader(for: token), forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 

@@ -32,46 +32,39 @@ struct ConnectionsView: View {
     }
 
     private var connectionList: some View {
-        List {
+        Group {
             if viewModel.connections.isEmpty {
-                ContentUnavailableView {
-                    Label("No Connections", systemImage: "server.rack")
-                } actions: {
-                    Button {
-                        viewModel.isPresentingSetup = true
-                    } label: {
-                        Label("Add Connection", systemImage: "plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
+                emptyConnectionView
             } else {
-                ForEach(viewModel.connections) { connection in
+                List {
+                    ForEach(viewModel.connections) { connection in
 #if os(macOS)
-                    Button {
-                        Task { await viewModel.select(connection) }
-                    } label: {
-                        ConnectionRow(
-                            connection: connection,
-                            isSelected: connection.id == viewModel.selectedConnectionID
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .contextMenu {
-                        Button("Delete", role: .destructive) {
-                            Task { await viewModel.delete(connection) }
+                        Button {
+                            Task { await viewModel.select(connection) }
+                        } label: {
+                            ConnectionRow(
+                                connection: connection,
+                                isSelected: connection.id == viewModel.selectedConnectionID
+                            )
                         }
-                    }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button("Delete", role: .destructive) {
+                                Task { await viewModel.delete(connection) }
+                            }
+                        }
 #else
-                    NavigationLink(value: connection) {
-                        ConnectionRow(connection: connection, isSelected: false)
+                        NavigationLink(value: connection) {
+                            ConnectionRow(connection: connection, isSelected: false)
+                        }
+#endif
+                    }
+#if os(iOS)
+                    .onDelete { offsets in
+                        Task { await viewModel.deleteConnections(at: offsets) }
                     }
 #endif
                 }
-#if os(iOS)
-                .onDelete { offsets in
-                    Task { await viewModel.deleteConnections(at: offsets) }
-                }
-#endif
             }
         }
         .toolbar {
@@ -91,6 +84,18 @@ struct ConnectionsView: View {
         ) {
             AddConnectionSheet(viewModel: viewModel)
         }
+    }
+
+    private var emptyConnectionView: some View {
+        ContentUnavailableView {
+            Label("No Connections", systemImage: "server.rack")
+        } actions: {
+            Button("Add Connection", systemImage: "plus") {
+                viewModel.isPresentingSetup = true
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -204,8 +209,19 @@ private struct AddConnectionSheet: View {
 #endif
                 }
 
-                Section("Authentication") {
-                    SecureField("API Token", text: $apiToken, prompt: Text("Token xxxxxxxxxxxxxxxx"))
+                Section {
+                    SecureField("API Token", text: $apiToken, prompt: Text("Token … or nbt_key.secret"))
+                } header: {
+                    Text("Authentication")
+                } footer: {
+                    if !apiToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        switch TokenVersion.detect(from: apiToken) {
+                        case .v2:
+                            Text("Token v2 detected — uses Bearer authentication (recommended).")
+                        case .v1:
+                            Text("Token v1 detected — legacy format, deprecated in NetBox 4.6.")
+                        }
+                    }
                 }
 
                 Section {
@@ -274,6 +290,7 @@ private struct AddConnectionSheet: View {
                 name: name,
                 netBoxURLString: netBoxURL,
                 apiToken: apiToken,
+                tokenVersion: TokenVersion.detect(from: apiToken),
                 ignoreSelfSignedCertificates: ignoreSelfSignedCertificates
             )
             dismiss()

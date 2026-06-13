@@ -46,6 +46,7 @@ final class ConnectionsViewModel {
         name: String,
         netBoxURLString: String,
         apiToken: String,
+        tokenVersion: TokenVersion,
         ignoreSelfSignedCertificates: Bool
     ) async throws {
         let baseURL = try NetBoxConnectionSetup.validatedBaseURL(from: netBoxURLString)
@@ -62,6 +63,7 @@ final class ConnectionsViewModel {
         try await testConnection(
             url: baseURL,
             token: trimmedToken,
+            tokenVersion: tokenVersion,
             allowSelfSignedCertificates: ignoreSelfSignedCertificates
         )
 
@@ -69,7 +71,8 @@ final class ConnectionsViewModel {
             name: trimmedName.isEmpty ? NetBoxConnectionSetup.defaultName(for: baseURL) : trimmedName,
             baseURL: baseURL,
             isDefault: connections.isEmpty,
-            allowSelfSignedCertificates: ignoreSelfSignedCertificates
+            allowSelfSignedCertificates: ignoreSelfSignedCertificates,
+            tokenVersion: tokenVersion
         )
 
         try await keychain.save(token: trimmedToken, for: connection.id)
@@ -146,12 +149,18 @@ final class ConnectionsViewModel {
     }
 
     func testConnection(url: URL, token: String) async throws {
-        try await testConnection(url: url, token: token, allowSelfSignedCertificates: false)
+        try await testConnection(
+            url: url,
+            token: token,
+            tokenVersion: .detect(from: token),
+            allowSelfSignedCertificates: false
+        )
     }
 
     func testConnection(
         url: URL,
         token: String,
+        tokenVersion: TokenVersion,
         allowSelfSignedCertificates: Bool
     ) async throws {
         let statusURL = try NetBoxClient.apiURL(baseURL: url, endpoint: "status")
@@ -162,7 +171,7 @@ final class ConnectionsViewModel {
 
         let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedToken.isEmpty {
-            request.setValue("Token \(trimmedToken)", forHTTPHeaderField: "Authorization")
+            request.setValue(tokenVersion.authorizationHeader(for: trimmedToken), forHTTPHeaderField: "Authorization")
         }
 
         let session: URLSession
