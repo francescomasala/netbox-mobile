@@ -69,19 +69,25 @@ struct AppMainView: View {
     private var iOSTabView: some View {
         TabView {
             NavigationStack {
-                PrefixListView(repository: dependencies.ipamRepository)
+                PrefixListView(repository: dependencies.ipamRepository, cache: dependencies.offlineCache)
             }
             .tabItem { Label("IPAM", systemImage: "list.bullet") }
 
             NavigationStack {
-                DeviceListView(repository: dependencies.dcimRepository)
+                DeviceListView(repository: dependencies.dcimRepository, cache: dependencies.offlineCache)
             }
             .tabItem { Label("DCIM", systemImage: "server.rack") }
 
             NavigationStack {
+                CircuitsListView(repository: dependencies.circuitsRepository, cache: dependencies.offlineCache)
+            }
+            .tabItem { Label("Circuits", systemImage: "point.3.connected.trianglepath.dotted") }
+
+            NavigationStack {
                 SearchView(
                     dcimRepository: dependencies.dcimRepository,
-                    ipamRepository: dependencies.ipamRepository
+                    ipamRepository: dependencies.ipamRepository,
+                    cache: dependencies.offlineCache
                 )
             }
             .tabItem { Label("Search", systemImage: "magnifyingglass") }
@@ -101,6 +107,7 @@ struct AppMainView: View {
 private enum SidebarItem: String, Hashable {
     case prefixes = "Prefixes"
     case devices = "Devices"
+    case circuits = "Circuits"
     case search = "Search"
     case connections = "Connections"
 }
@@ -121,6 +128,10 @@ struct MacShellView: View {
                     Label("Devices", systemImage: "server.rack")
                         .tag(SidebarItem.devices)
                 }
+                Section("Circuits") {
+                    Label("Circuits", systemImage: "point.3.connected.trianglepath.dotted")
+                        .tag(SidebarItem.circuits)
+                }
                 Label("Search", systemImage: "magnifyingglass")
                     .tag(SidebarItem.search)
                 Label("Connections", systemImage: "gear")
@@ -131,13 +142,16 @@ struct MacShellView: View {
             NavigationStack {
                 switch selection ?? .prefixes {
                 case .prefixes:
-                    PrefixListView(repository: dependencies.ipamRepository)
+                    PrefixListView(repository: dependencies.ipamRepository, cache: dependencies.offlineCache)
                 case .devices:
-                    DeviceListView(repository: dependencies.dcimRepository)
+                    DeviceListView(repository: dependencies.dcimRepository, cache: dependencies.offlineCache)
+                case .circuits:
+                    CircuitsListView(repository: dependencies.circuitsRepository, cache: dependencies.offlineCache)
                 case .search:
                     SearchView(
                         dcimRepository: dependencies.dcimRepository,
-                        ipamRepository: dependencies.ipamRepository
+                        ipamRepository: dependencies.ipamRepository,
+                        cache: dependencies.offlineCache
                     )
                 case .connections:
                     ConnectionsView()

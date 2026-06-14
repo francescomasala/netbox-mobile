@@ -14,6 +14,7 @@ struct ErrorView: View {
                     Circle()
                         .fill(.orange.opacity(0.14))
                 )
+                .symbolEffect(.pulse, isActive: true)
 
             Text(error.localizedDescription)
                 .font(.body)

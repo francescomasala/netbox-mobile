@@ -1,11 +1,11 @@
 import Foundation
 
-struct InterfaceType: Decodable, Hashable, Sendable {
+struct InterfaceType: Codable, Hashable, Sendable {
     let value: String
     let label: String
 }
 
-struct Interface: Decodable, Identifiable, Hashable, Sendable {
+struct Interface: Codable, Identifiable, Hashable, Sendable {
     let id: Int
     let device: NestedDevice
     let name: String

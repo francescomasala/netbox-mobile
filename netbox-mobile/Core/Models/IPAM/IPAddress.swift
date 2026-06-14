@@ -1,6 +1,6 @@
 import Foundation
 
-struct IPAddress: Decodable, Identifiable, Hashable, Sendable {
+struct IPAddress: Codable, Identifiable, Hashable, Sendable {
     let id: Int
     let address: String
     let vrf: NestedVRF?
@@ -10,6 +10,6 @@ struct IPAddress: Decodable, Identifiable, Hashable, Sendable {
     let assignedObject: AssignedObject?
 }
 
-struct AssignedObject: Decodable, Hashable, Sendable {
+struct AssignedObject: Codable, Hashable, Sendable {
     let display: String
 }

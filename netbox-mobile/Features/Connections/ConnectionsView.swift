@@ -13,7 +13,11 @@ struct ConnectionsView: View {
                 if let connection = viewModel.selectedConnection {
                     PrefixListView(repository: viewModel.repository(for: connection))
                 } else {
-                    ContentUnavailableView("No Connection Selected", systemImage: "server.rack")
+                    EmptyStateView(
+                        title: "No Connection Selected",
+                        systemImage: "server.rack",
+                        message: "Select a saved NetBox connection."
+                    )
                 }
             }
 #else
@@ -87,15 +91,14 @@ struct ConnectionsView: View {
     }
 
     private var emptyConnectionView: some View {
-        ContentUnavailableView {
-            Label("No Connections", systemImage: "server.rack")
-        } actions: {
-            Button("Add Connection", systemImage: "plus") {
-                viewModel.isPresentingSetup = true
-            }
-            .buttonStyle(.borderedProminent)
+        EmptyStateView(
+            title: "No Connections",
+            systemImage: "server.rack",
+            actionTitle: "Add Connection",
+            actionSystemImage: "plus"
+        ) {
+            viewModel.isPresentingSetup = true
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

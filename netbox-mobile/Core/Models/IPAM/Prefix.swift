@@ -1,6 +1,6 @@
 import Foundation
 
-struct Prefix: Decodable, Identifiable, Hashable, Sendable {
+struct Prefix: Codable, Identifiable, Hashable, Sendable {
     let id: Int
     let prefix: String
     let vrf: NestedVRF?

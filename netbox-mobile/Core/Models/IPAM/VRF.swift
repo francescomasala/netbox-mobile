@@ -1,6 +1,6 @@
 import Foundation
 
-struct NestedVRF: Decodable, Hashable, Sendable {
+struct NestedVRF: Codable, Hashable, Sendable {
     let id: Int
     let name: String
     let rd: String?

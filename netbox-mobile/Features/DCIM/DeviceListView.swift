@@ -2,8 +2,10 @@ import SwiftUI
 
 struct DeviceListView: View {
     @State private var viewModel: DeviceListViewModel
+    private let cache: OfflineCacheStore?
 
-    init(repository: any DCIMRepositoryProtocol) {
+    init(repository: any DCIMRepositoryProtocol, cache: OfflineCacheStore? = nil) {
+        self.cache = cache
         _viewModel = State(initialValue: DeviceListViewModel(repository: repository))
     }
 
@@ -57,13 +59,17 @@ struct DeviceListView: View {
                 Task { await viewModel.load() }
             }
         } else if viewModel.filteredDevices.isEmpty {
-            ContentUnavailableView("No Devices", systemImage: "server.rack")
+            EmptyStateView(
+                title: "No Devices",
+                systemImage: "server.rack",
+                message: "No devices match the current filters."
+            )
         } else {
 #if os(macOS)
             Table(viewModel.filteredDevices) {
                 TableColumn("Name") { device in
                     NavigationLink {
-                        DeviceDetailView(device: device, repository: viewModel.repository)
+                        DeviceDetailView(device: device, repository: viewModel.repository, cache: cache)
                     } label: {
                         Text(device.name ?? device.display)
                     }
@@ -81,7 +87,7 @@ struct DeviceListView: View {
 #else
             List(viewModel.filteredDevices) { device in
                 NavigationLink {
-                    DeviceDetailView(device: device, repository: viewModel.repository)
+                    DeviceDetailView(device: device, repository: viewModel.repository, cache: cache)
                 } label: {
                     DeviceRow(device: device)
                 }

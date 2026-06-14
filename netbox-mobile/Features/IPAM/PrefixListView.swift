@@ -3,8 +3,10 @@ import SwiftUI
 struct PrefixListView: View {
     @State private var viewModel: PrefixListViewModel
     @State private var searchText = ""
+    private let cache: OfflineCacheStore?
 
-    init(repository: any IPAMRepositoryProtocol) {
+    init(repository: any IPAMRepositoryProtocol, cache: OfflineCacheStore? = nil) {
+        self.cache = cache
         _viewModel = State(initialValue: PrefixListViewModel(repository: repository))
     }
 
@@ -47,14 +49,18 @@ struct PrefixListView: View {
                 Task { await viewModel.load() }
             }
         } else if groupedPrefixes.isEmpty {
-            ContentUnavailableView("No Prefixes", systemImage: "network")
+            EmptyStateView(
+                title: "No Prefixes",
+                systemImage: "network",
+                message: "No prefixes match the current filters."
+            )
         } else {
             List {
                 ForEach(groupedPrefixes, id: \.name) { group in
                     Section(group.name) {
                         ForEach(group.prefixes) { prefix in
                             NavigationLink {
-                                PrefixDetailView(prefix: prefix, repository: viewModel.repository)
+                                PrefixDetailView(prefix: prefix, repository: viewModel.repository, cache: cache)
                             } label: {
                                 PrefixRow(prefix: prefix)
                             }

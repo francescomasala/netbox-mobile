@@ -3,10 +3,15 @@ import SwiftUI
 struct SearchView: View {
     @State private var viewModel: SearchViewModel
 
-    init(dcimRepository: any DCIMRepositoryProtocol, ipamRepository: any IPAMRepositoryProtocol) {
+    init(
+        dcimRepository: any DCIMRepositoryProtocol,
+        ipamRepository: any IPAMRepositoryProtocol,
+        cache: OfflineCacheStore?
+    ) {
         _viewModel = State(initialValue: SearchViewModel(
             dcimRepository: dcimRepository,
-            ipamRepository: ipamRepository
+            ipamRepository: ipamRepository,
+            cache: cache
         ))
     }
 
@@ -16,6 +21,11 @@ struct SearchView: View {
             .searchable(text: $viewModel.query, prompt: "Devices, prefixes, IPs…")
             .onChange(of: viewModel.query) {
                 viewModel.scheduleSearch()
+            }
+            .safeAreaInset(edge: .top) {
+                if viewModel.isShowingCachedResults {
+                    CachedDataBanner(date: viewModel.cachedDate)
+                }
             }
             .toolbar {
 #if os(iOS)
@@ -36,20 +46,20 @@ struct SearchView: View {
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if viewModel.query.count < 2 {
-            ContentUnavailableView(
-                "Search NetBox",
+            EmptyStateView(
+                title: "Search NetBox",
                 systemImage: "magnifyingglass",
-                description: Text("Type at least 2 characters to search devices, prefixes, and IP addresses.")
+                message: "Type at least 2 characters to search devices, prefixes, and IP addresses."
             )
-        } else if let error = viewModel.error {
+        } else if let error = viewModel.error, viewModel.results.isEmpty {
             ErrorView(error: error) {
                 Task { await viewModel.search() }
             }
         } else if viewModel.results.isEmpty {
-            ContentUnavailableView(
-                "No Results",
+            EmptyStateView(
+                title: "No Results",
                 systemImage: "magnifyingglass",
-                description: Text("No matches for \"\(viewModel.query)\". Try a different search term.")
+                message: "No matches for \"\(viewModel.query)\". Try a different search term."
             )
         } else {
             List {
@@ -70,7 +80,8 @@ struct SearchView: View {
                         NavigationLink {
                             DeviceDetailView(
                                 device: device,
-                                repository: viewModel.dcimRepository
+                                repository: viewModel.dcimRepository,
+                                cache: viewModel.cache
                             )
                         } label: {
                             SearchDeviceRow(device: device)
@@ -85,7 +96,8 @@ struct SearchView: View {
                         NavigationLink {
                             PrefixDetailView(
                                 prefix: prefix,
-                                repository: viewModel.ipamRepository
+                                repository: viewModel.ipamRepository,
+                                cache: viewModel.cache
                             )
                         } label: {
                             SearchPrefixRow(prefix: prefix)

@@ -1,8 +1,18 @@
 import Foundation
 
+struct CreateIPAddressRequest: Encodable, Sendable {
+    let address: String
+    let status: String
+    let dnsName: String?
+    let description: String?
+    let assignedObjectType: String?
+    let assignedObjectId: Int?
+}
+
 protocol IPAMRepositoryProtocol: Sendable {
     func fetchPrefixes(vrfId: Int?, family: Int?, query: String?) async throws -> PagedResult<Prefix>
     func fetchIPAddresses(prefixId: Int?, query: String?) async throws -> [IPAddress]
+    func createIPAddress(_ request: CreateIPAddressRequest) async throws -> IPAddress
 }
 
 actor IPAMRepository: IPAMRepositoryProtocol {
@@ -42,6 +52,10 @@ actor IPAMRepository: IPAMRepositoryProtocol {
             baseQueryItems: queryItems
         )
         return result.items
+    }
+
+    func createIPAddress(_ request: CreateIPAddressRequest) async throws -> IPAddress {
+        try await client.post("ipam/ip-addresses", body: request)
     }
 
     private func fetchAll<T: Decodable & Sendable>(

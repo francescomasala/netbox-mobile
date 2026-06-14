@@ -7,12 +7,12 @@ struct PagedResponse<T: Decodable & Sendable>: Decodable, Sendable {
     let results: [T]
 }
 
-struct StatusValue: Decodable, Hashable, Sendable {
+struct StatusValue: Codable, Hashable, Sendable {
     let value: String
     let label: String
 }
 
-struct AddressFamily: Decodable, Hashable, Sendable {
+struct AddressFamily: Codable, Hashable, Sendable {
     let value: Int
     let label: String
 }

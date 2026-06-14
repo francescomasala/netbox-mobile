@@ -4,6 +4,7 @@ protocol DCIMRepositoryProtocol: Sendable {
     func fetchDevices(siteId: Int?, status: String?, query: String?, assetTag: String?) async throws -> PagedResult<Device>
     func fetchDevice(id: Int) async throws -> Device
     func fetchInterfaces(deviceId: Int) async throws -> [Interface]
+    func updateDeviceStatus(deviceId: Int, status: String) async throws -> Device
 }
 
 actor DCIMRepository: DCIMRepositoryProtocol {
@@ -37,6 +38,13 @@ actor DCIMRepository: DCIMRepositoryProtocol {
         return result.items
     }
 
+    func updateDeviceStatus(deviceId: Int, status: String) async throws -> Device {
+        try await client.patch(
+            "dcim/devices/\(deviceId)",
+            body: DeviceStatusUpdateRequest(status: status)
+        )
+    }
+
     private func fetchAll<T: Decodable & Sendable>(
         endpoint: String,
         baseQueryItems: [URLQueryItem]
@@ -67,4 +75,8 @@ actor DCIMRepository: DCIMRepositoryProtocol {
             offset += pageLimit
         }
     }
+}
+
+private struct DeviceStatusUpdateRequest: Encodable, Sendable {
+    let status: String
 }

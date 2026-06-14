@@ -1,12 +1,12 @@
 import Foundation
 
-struct NestedIPAddress: Decodable, Hashable, Sendable {
+struct NestedIPAddress: Codable, Hashable, Sendable {
     let id: Int
     let address: String
     let display: String
 }
 
-struct Device: Decodable, Identifiable, Hashable, Sendable {
+struct Device: Codable, Identifiable, Hashable, Sendable {
     let id: Int
     let name: String?
     let display: String
@@ -43,6 +43,25 @@ struct Device: Decodable, Identifiable, Hashable, Sendable {
         serial = try c.decodeIfPresent(String.self, forKey: .serial) ?? ""
         description = try c.decodeIfPresent(String.self, forKey: .description) ?? ""
         comments = try c.decodeIfPresent(String.self, forKey: .comments) ?? ""
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encodeIfPresent(name, forKey: .name)
+        try container.encode(display, forKey: .display)
+        try container.encode(deviceType, forKey: .deviceType)
+        try container.encodeIfPresent(site, forKey: .site)
+        try container.encodeIfPresent(rack, forKey: .rack)
+        try container.encodeIfPresent(position, forKey: .position)
+        try container.encode(status, forKey: .status)
+        try container.encodeIfPresent(primaryIp, forKey: .primaryIp)
+        try container.encodeIfPresent(primaryIp4, forKey: .primaryIp4)
+        try container.encodeIfPresent(primaryIp6, forKey: .primaryIp6)
+        try container.encodeIfPresent(assetTag, forKey: .assetTag)
+        try container.encode(serial, forKey: .serial)
+        try container.encode(description, forKey: .description)
+        try container.encode(comments, forKey: .comments)
     }
 
     private enum CodingKeys: String, CodingKey {

@@ -6,6 +6,7 @@ enum APIError: LocalizedError {
     case notFound
     case serverError(statusCode: Int)
     case decodingFailed(underlying: Error)
+    case encodingFailed(underlying: Error)
     case networkUnavailable
     case invalidURL
 
@@ -21,6 +22,8 @@ enum APIError: LocalizedError {
             "NetBox returned HTTP \(statusCode)."
         case .decodingFailed(let underlying):
             "The NetBox response could not be decoded: \(underlying.localizedDescription)"
+        case .encodingFailed(let underlying):
+            "The NetBox request could not be encoded: \(underlying.localizedDescription)"
         case .networkUnavailable:
             "The network is unavailable or the NetBox instance cannot be reached."
         case .invalidURL:

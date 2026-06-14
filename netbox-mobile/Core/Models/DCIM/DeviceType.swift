@@ -1,6 +1,6 @@
 import Foundation
 
-struct DeviceType: Decodable, Identifiable, Hashable, Sendable {
+struct DeviceType: Codable, Identifiable, Hashable, Sendable {
     let id: Int
     let manufacturer: Manufacturer
     let model: String

@@ -121,33 +121,31 @@ struct ScannerView: View {
     // MARK: - Permission views
 
     private var deniedView: some View {
-        ContentUnavailableView {
-            Label("Camera Access Required", systemImage: "camera.fill")
-        } description: {
-            Text("Camera access was denied. Enable it in Settings to scan asset tags.")
-        } actions: {
-            Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
+        EmptyStateView(
+            title: "Camera Access Required",
+            systemImage: "camera.fill",
+            message: "Camera access was denied. Enable it in Settings to scan asset tags.",
+            actionTitle: "Open Settings",
+            actionSystemImage: "gear"
+        ) {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(url)
             }
-            .buttonStyle(.borderedProminent)
         }
     }
 
     private var requestView: some View {
-        ContentUnavailableView {
-            Label("Camera Access Needed", systemImage: "camera")
-        } description: {
-            Text("Camera access is required to scan device asset tags.")
-        } actions: {
-            Button("Allow Camera") {
-                Task {
-                    let granted = await AVCaptureDevice.requestAccess(for: .video)
-                    authorizationStatus = granted ? .authorized : .denied
-                }
+        EmptyStateView(
+            title: "Camera Access Needed",
+            systemImage: "camera",
+            message: "Camera access is required to scan device asset tags.",
+            actionTitle: "Allow Camera",
+            actionSystemImage: "checkmark"
+        ) {
+            Task {
+                let granted = await AVCaptureDevice.requestAccess(for: .video)
+                authorizationStatus = granted ? .authorized : .denied
             }
-            .buttonStyle(.borderedProminent)
         }
     }
 }
@@ -261,10 +259,10 @@ struct ScannerView: View {
     init(repository: any DCIMRepositoryProtocol) {}
 
     var body: some View {
-        ContentUnavailableView(
-            "Not Available",
+        EmptyStateView(
+            title: "Not Available",
             systemImage: "qrcode.viewfinder",
-            description: Text("QR scanning requires iPhone or iPad.")
+            message: "QR scanning requires iPhone or iPad."
         )
     }
 }

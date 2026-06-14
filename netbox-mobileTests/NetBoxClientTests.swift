@@ -161,6 +161,53 @@ struct NetBoxClientTests {
         #expect(MockURLProtocol.recordedRequests().count == 2)
     }
 
+    @Test func postEncodesSnakeCaseJSONBody() async throws {
+        MockURLProtocol.reset()
+        MockURLProtocol.setHandler { request in
+            let response = try makeHTTPResponse(for: request, statusCode: 201)
+            let body = try requestBodyData(for: request)
+            let object = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+
+            #expect(request.httpMethod == "POST")
+            #expect(request.url?.absoluteString == "https://netbox.example/api/ipam/ip-addresses/")
+            #expect(object["dns_name"] as? String == "edge.example.net")
+            #expect(object["assigned_object_id"] as? Int == 42)
+
+            return (response, Data(#"{"ok":true}"#.utf8))
+        }
+
+        let client = try await Self.makeClient()
+        let response: WriteProbeResponse = try await client.post(
+            "ipam/ip-addresses",
+            body: WriteProbePayload(dnsName: "edge.example.net", assignedObjectId: 42)
+        )
+
+        #expect(response.ok)
+    }
+
+    @Test func patchEncodesJSONBody() async throws {
+        MockURLProtocol.reset()
+        MockURLProtocol.setHandler { request in
+            let response = try makeHTTPResponse(for: request, statusCode: 200)
+            let body = try requestBodyData(for: request)
+            let object = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+
+            #expect(request.httpMethod == "PATCH")
+            #expect(request.url?.absoluteString == "https://netbox.example/api/dcim/devices/10/")
+            #expect(object["status"] as? String == "offline")
+
+            return (response, Data(#"{"ok":true}"#.utf8))
+        }
+
+        let client = try await Self.makeClient()
+        let response: WriteProbeResponse = try await client.patch(
+            "dcim/devices/10",
+            body: StatusPatchPayload(status: "offline")
+        )
+
+        #expect(response.ok)
+    }
+
     @Test func getUsesBearerAuthorizationHeaderForV2Token() async throws {
         MockURLProtocol.reset()
         MockURLProtocol.setHandler { request in
@@ -216,6 +263,48 @@ struct NetBoxClientTests {
 }
 
 private struct EmptyPayload: Decodable, Sendable {}
+
+private struct WriteProbePayload: Encodable, Sendable {
+    let dnsName: String
+    let assignedObjectId: Int
+}
+
+private struct StatusPatchPayload: Encodable, Sendable {
+    let status: String
+}
+
+private struct WriteProbeResponse: Decodable, Sendable {
+    let ok: Bool
+}
+
+private func requestBodyData(for request: URLRequest) throws -> Data {
+    if let body = request.httpBody {
+        return body
+    }
+
+    guard let stream = request.httpBodyStream else {
+        throw URLError(.cannotDecodeContentData)
+    }
+
+    stream.open()
+    defer { stream.close() }
+
+    var data = Data()
+    var buffer = [UInt8](repeating: 0, count: 1024)
+
+    while stream.hasBytesAvailable {
+        let readCount = stream.read(&buffer, maxLength: buffer.count)
+        if readCount < 0 {
+            throw stream.streamError ?? URLError(.cannotDecodeContentData)
+        }
+        if readCount == 0 {
+            break
+        }
+        data.append(buffer, count: readCount)
+    }
+
+    return data
+}
 
 private func makeHTTPResponse(for request: URLRequest, statusCode: Int) throws -> HTTPURLResponse {
     guard

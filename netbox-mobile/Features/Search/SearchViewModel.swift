@@ -25,18 +25,22 @@ final class SearchViewModel {
     var results: Results = Results()
     var isLoading = false
     var error: APIError?
+    var isShowingCachedResults = false
+    var cachedDate: Date?
 
-    // `let` (not private) so views can pass them to child views
     @ObservationIgnored let dcimRepository: any DCIMRepositoryProtocol
     @ObservationIgnored let ipamRepository: any IPAMRepositoryProtocol
+    @ObservationIgnored let cache: OfflineCacheStore?
     @ObservationIgnored private var searchTask: Task<Void, Never>?
 
     init(
         dcimRepository: any DCIMRepositoryProtocol,
-        ipamRepository: any IPAMRepositoryProtocol
+        ipamRepository: any IPAMRepositoryProtocol,
+        cache: OfflineCacheStore?
     ) {
         self.dcimRepository = dcimRepository
         self.ipamRepository = ipamRepository
+        self.cache = cache
     }
 
     func scheduleSearch() {
@@ -52,10 +56,23 @@ final class SearchViewModel {
         let currentQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard currentQuery.count >= 2 else {
             results = Results()
+            error = nil
+            isShowingCachedResults = false
+            cachedDate = nil
             return
         }
 
-        isLoading = true
+        if let cached = cache?.cachedSearchResults(for: currentQuery) {
+            results = Results(
+                devices: cached.devices,
+                prefixes: cached.prefixes,
+                ipAddresses: cached.ipAddresses
+            )
+            cachedDate = cached.savedAt
+            isShowingCachedResults = true
+        }
+
+        isLoading = results.isEmpty
         error = nil
 
         let dcim = dcimRepository
@@ -79,6 +96,18 @@ final class SearchViewModel {
                 prefixes: pr.items,
                 ipAddresses: ir
             )
+            isShowingCachedResults = false
+            cachedDate = nil
+
+            cache?.saveSearchResults(
+                CachedSearchResults(
+                    devices: dr.items,
+                    prefixes: pr.items,
+                    ipAddresses: ir,
+                    savedAt: Date()
+                ),
+                for: currentQuery
+            )
         } catch is CancellationError {
         } catch let apiError as APIError {
             error = apiError
@@ -94,5 +123,7 @@ final class SearchViewModel {
         query = ""
         results = Results()
         error = nil
+        isShowingCachedResults = false
+        cachedDate = nil
     }
 }

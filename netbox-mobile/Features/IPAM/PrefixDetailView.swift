@@ -2,9 +2,11 @@ import SwiftUI
 
 struct PrefixDetailView: View {
     @State private var viewModel: PrefixDetailViewModel
+    @Environment(\.appDependencies) private var dependencies
+    @State private var isPresentingAddIPAddress = false
 
-    init(prefix: Prefix, repository: any IPAMRepositoryProtocol) {
-        _viewModel = State(initialValue: PrefixDetailViewModel(prefix: prefix, repository: repository))
+    init(prefix: Prefix, repository: any IPAMRepositoryProtocol, cache: OfflineCacheStore?) {
+        _viewModel = State(initialValue: PrefixDetailViewModel(prefix: prefix, repository: repository, cache: cache))
     }
 
     var body: some View {
@@ -31,12 +33,17 @@ struct PrefixDetailView: View {
             Section("IP Addresses") {
                 if viewModel.isLoading && viewModel.ipAddresses.isEmpty {
                     ProgressView()
-                } else if let error = viewModel.error {
+                } else if let error = viewModel.error, viewModel.ipAddresses.isEmpty {
                     ErrorView(error: error) {
                         Task { await viewModel.load() }
                     }
                 } else if viewModel.ipAddresses.isEmpty {
-                    ContentUnavailableView("No IP Addresses", systemImage: "tray")
+                    EmptyStateView(
+                        title: "No IP Addresses",
+                        systemImage: "tray",
+                        message: "This prefix has no matching IP address records."
+                    )
+                    .frame(minHeight: 220)
                 } else {
                     ForEach(viewModel.ipAddresses) { ipAddress in
                         IPAddressRow(ipAddress: ipAddress)
@@ -45,6 +52,29 @@ struct PrefixDetailView: View {
             }
         }
         .navigationTitle(viewModel.prefix.prefix)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isPresentingAddIPAddress = true
+                } label: {
+                    Label("Add IP", systemImage: "plus")
+                }
+            }
+        }
+        .safeAreaInset(edge: .top) {
+            if viewModel.isShowingCachedData {
+                CachedDataBanner(date: viewModel.cachedDate)
+            }
+        }
+        .sheet(isPresented: $isPresentingAddIPAddress) {
+            AddIPAddressView(
+                prefix: viewModel.prefix,
+                ipamRepository: viewModel.repository,
+                dcimRepository: dependencies?.dcimRepository
+            ) { ipAddress in
+                viewModel.addCreatedIPAddress(ipAddress)
+            }
+        }
         .task {
             if viewModel.ipAddresses.isEmpty {
                 await viewModel.load()

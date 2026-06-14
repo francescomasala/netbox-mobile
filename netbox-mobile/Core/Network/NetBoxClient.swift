@@ -31,13 +31,41 @@ actor NetBoxClient {
     }
 
     func get<T: Decodable & Sendable>(_ endpoint: String, queryItems: [URLQueryItem] = []) async throws -> T {
+        try await send(endpoint, method: "GET", queryItems: queryItems, bodyData: nil)
+    }
+
+    func post<Response: Decodable & Sendable, Body: Encodable & Sendable>(
+        _ endpoint: String,
+        body: Body,
+        queryItems: [URLQueryItem] = []
+    ) async throws -> Response {
+        let bodyData = try encode(body)
+        return try await send(endpoint, method: "POST", queryItems: queryItems, bodyData: bodyData)
+    }
+
+    func patch<Response: Decodable & Sendable, Body: Encodable & Sendable>(
+        _ endpoint: String,
+        body: Body,
+        queryItems: [URLQueryItem] = []
+    ) async throws -> Response {
+        let bodyData = try encode(body)
+        return try await send(endpoint, method: "PATCH", queryItems: queryItems, bodyData: bodyData)
+    }
+
+    private func send<T: Decodable & Sendable>(
+        _ endpoint: String,
+        method: String,
+        queryItems: [URLQueryItem],
+        bodyData: Data?
+    ) async throws -> T {
         try Task.checkCancellation()
 
         let token = try await keychain.load(for: connection.id)
         let url = try Self.apiURL(baseURL: connection.baseURL, endpoint: endpoint, queryItems: queryItems)
 
         var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+        request.httpMethod = method
+        request.httpBody = bodyData
         request.setValue(connection.tokenVersion.authorizationHeader(for: token), forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -73,6 +101,16 @@ actor NetBoxClient {
             return try decoder.decode(T.self, from: data)
         } catch {
             throw APIError.decodingFailed(underlying: error)
+        }
+    }
+
+    private func encode<Body: Encodable & Sendable>(_ body: Body) throws -> Data {
+        do {
+            let encoder = JSONEncoder()
+            encoder.keyEncodingStrategy = .convertToSnakeCase
+            return try encoder.encode(body)
+        } catch {
+            throw APIError.encodingFailed(underlying: error)
         }
     }
 

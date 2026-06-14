@@ -1,6 +1,6 @@
 import Foundation
 
-struct NestedDevice: Decodable, Hashable, Sendable {
+struct NestedDevice: Codable, Hashable, Sendable {
     let id: Int
     let name: String?
     let display: String

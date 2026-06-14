@@ -3,9 +3,11 @@ import SwiftUI
 struct DeviceDetailView: View {
     @State private var viewModel: DeviceDetailViewModel
     @Environment(\.appDependencies) private var dependencies
+    @State private var pendingStatus: DeviceStatusOption?
+    @State private var isShowingMutationError = false
 
-    init(device: Device, repository: any DCIMRepositoryProtocol) {
-        _viewModel = State(initialValue: DeviceDetailViewModel(device: device, repository: repository))
+    init(device: Device, repository: any DCIMRepositoryProtocol, cache: OfflineCacheStore? = nil) {
+        _viewModel = State(initialValue: DeviceDetailViewModel(device: device, repository: repository, cache: cache))
     }
 
     var body: some View {
@@ -16,11 +18,35 @@ struct DeviceDetailView: View {
         }
         .navigationTitle(viewModel.device.name ?? viewModel.device.display)
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                statusMenu
+            }
+
             if let url = deviceShareURL {
                 ToolbarItem {
                     ShareLink("Open in NetBox", item: url)
                 }
             }
+        }
+        .safeAreaInset(edge: .top) {
+            if viewModel.isShowingCachedData {
+                CachedDataBanner(date: viewModel.cachedDate)
+            }
+        }
+        .alert("Change Device Status", isPresented: confirmationBinding, presenting: pendingStatus) { status in
+            Button("Cancel", role: .cancel) {
+                pendingStatus = nil
+            }
+            Button("Change", role: .destructive) {
+                Task { await updateStatus(status) }
+            }
+        } message: { status in
+            Text("Change \(viewModel.device.name ?? viewModel.device.display) to \(status.label)?")
+        }
+        .alert("Status Update Failed", isPresented: $isShowingMutationError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.mutationError?.localizedDescription ?? "NetBox rejected the status update.")
         }
         .task {
             if viewModel.interfaces.isEmpty {
@@ -30,6 +56,9 @@ struct DeviceDetailView: View {
         .refreshable {
             await viewModel.loadInterfaces()
         }
+        .onChange(of: viewModel.mutationError?.localizedDescription) {
+            isShowingMutationError = viewModel.mutationError != nil
+        }
     }
 
     // MARK: - Sections
@@ -37,6 +66,13 @@ struct DeviceDetailView: View {
     private var headerSection: some View {
         Section {
             LabeledContent("Status") { StatusBadge(status: viewModel.device.status) }
+            if viewModel.isUpdatingStatus {
+                HStack {
+                    Text("Updating Status")
+                    Spacer()
+                    ProgressView()
+                }
+            }
             if let site = viewModel.device.site {
                 LabeledContent("Site", value: site.name)
             }
@@ -90,12 +126,17 @@ struct DeviceDetailView: View {
         Section("Interfaces") {
             if viewModel.isLoadingInterfaces && viewModel.interfaces.isEmpty {
                 ProgressView()
-            } else if let error = viewModel.error {
+            } else if let error = viewModel.error, viewModel.interfaces.isEmpty {
                 ErrorView(error: error) {
                     Task { await viewModel.loadInterfaces() }
                 }
             } else if viewModel.interfaces.isEmpty {
-                ContentUnavailableView("No Interfaces", systemImage: "cable.connector")
+                EmptyStateView(
+                    title: "No Interfaces",
+                    systemImage: "cable.connector",
+                    message: "This device has no interface records."
+                )
+                .frame(minHeight: 220)
             } else {
                 ForEach(viewModel.interfaces) { iface in
                     InterfaceRow(iface: iface)
@@ -106,12 +147,46 @@ struct DeviceDetailView: View {
 
     // MARK: - Helpers
 
+    private var statusMenu: some View {
+        Menu {
+            ForEach(DeviceStatusOption.all) { status in
+                Button {
+                    pendingStatus = status
+                } label: {
+                    if status.value == viewModel.device.status.value {
+                        Label(status.label, systemImage: "checkmark")
+                    } else {
+                        Text(status.label)
+                    }
+                }
+                .disabled(status.value == viewModel.device.status.value || viewModel.isUpdatingStatus)
+            }
+        } label: {
+            Label("Status", systemImage: "switch.2")
+        }
+    }
+
+    private var confirmationBinding: Binding<Bool> {
+        Binding {
+            pendingStatus != nil
+        } set: { isPresented in
+            if !isPresented {
+                pendingStatus = nil
+            }
+        }
+    }
+
     private var deviceShareURL: URL? {
         guard let base = dependencies?.baseURL else { return nil }
         return base
             .appendingPathComponent("dcim")
             .appendingPathComponent("devices")
             .appendingPathComponent("\(viewModel.device.id)")
+    }
+
+    private func updateStatus(_ status: DeviceStatusOption) async {
+        pendingStatus = nil
+        await viewModel.updateStatus(to: status)
     }
 }
 
